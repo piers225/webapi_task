@@ -1,0 +1,21 @@
+version: "3.7"
+
+services:
+    long_task:
+      build: 
+        context: .
+        dockerfile: DockerFile
+      volumes:
+        - ../:/app
+      environment:
+        - TZ=UTC
+      tty: true
+      env_file:
+         - .env
+      networks:
+        - piers_dev_network
+      ports:
+        - 5345:5043
+networks:
+  piers_dev_network:
+    external: true

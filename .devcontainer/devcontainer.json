@@ -1,0 +1,26 @@
+{
+    "name": "c_sharp",
+    "dockerComposeFile": [
+        "docker-compose.yml"
+    ],
+    "service": "long_task",
+    "workspaceFolder": "/app",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-dotnettools.csharp", 
+                "formulahendry.dotnet-test-explorer",
+                "esbenp.prettier-vscode",
+                "streetsidesoftware.code-spell-checker",
+                "PKief.material-icon-theme",
+                "icsharpcode.ilspy-vscode"
+            ],
+            "settings": {
+                "files.eol": "\r\n",
+                "remote.extensionKind": {
+                    "ms-azuretools.vscode-docker": "workspace"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Console</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        #console {
+            background-color: #222;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            height: 300px;
+            overflow-y: auto;
+        }
+        #input {
+            display: flex;
+            margin-top: 20px;
+        }
+        #input button {
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #input button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #input input {
+            padding: 10px;
+            margin-right: 10px;
+            font-size: 16px;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Console</h1>
+    <div id="console"></div>
+    <div id="input">
+        <button id="startTaskBtn">Start Task</button>
+    </div>
+
+    <script>
+        const consoleDiv = document.getElementById("console");
+        const startTaskBtn = document.getElementById("startTaskBtn");
+
+        // Function to append text to the console
+        function appendToConsole(message) {
+            const p = document.createElement("p");
+            p.textContent = message;
+            consoleDiv.appendChild(p);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight; // Auto-scroll to the bottom
+        }
+
+        // Function to start a new task
+        async function startTask() {
+
+            startTaskBtn.disabled = true;
+            appendToConsole(`Starting task: ...`);
+
+            try {
+                const response = await fetch("/api/task", {
+                    method: "PUT",
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    taskId = result; 
+                    appendToConsole(`Task started. Task ID: ${taskId}`);
+                    startPollingTaskStatus(taskId);
+                } else {
+                    appendToConsole("Error starting task.");
+                }
+            } catch (error) {
+                appendToConsole("Error: " + error.message);
+            } finally {
+                startTaskBtn.disabled = false;
+            }
+        }
+
+        async function startPollingTaskStatus(taskId) {
+            const pollInterval = setInterval(async () => {
+                if (!taskId) return;
+
+                try {
+                    const response = await fetch(`/api/task/${taskId}`);
+                    if (response.ok) {
+                        const content = await response.json();
+
+                        content.logs.forEach(line => appendToConsole(line));
+                        if (content.isCompleted) {
+                            appendToConsole(`Task completed. Task ID: ${taskId}`);
+                            clearInterval(pollInterval);
+                            return;
+                        }
+                    
+                    } else {
+                        appendToConsole("Error checking task status.");
+                    }
+                } catch (error) {
+                    appendToConsole("Error: " + error.message);
+                }
+            }, 2000);
+        }
+
+        startTaskBtn.addEventListener("click", startTask);
+    </script>
+</body>
+</html>
