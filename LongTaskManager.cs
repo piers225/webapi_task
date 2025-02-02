@@ -6,7 +6,7 @@ namespace MyApi;
 internal class LongTaskManager
 {
     private readonly Channel<Func<Task>> _taskChannel;
-    private readonly ConcurrentDictionary<Guid, InMemoryLogger<Worker>> _taskLogs = new ConcurrentDictionary<Guid, InMemoryLogger<Worker>>();
+    private readonly ConcurrentDictionary<Guid, InMemoryLogger<Worker>> _taskLogs = new();
 
     public LongTaskManager()
     {
@@ -16,7 +16,14 @@ internal class LongTaskManager
         {
             await foreach (var workItem in _taskChannel.Reader.ReadAllAsync())
             {
-                await workItem();
+                try
+                {
+                    await workItem();
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
         });
     }
@@ -25,11 +32,25 @@ internal class LongTaskManager
     {
         var guid = Guid.NewGuid();
         var logger = new InMemoryLogger<Worker>();
-        var workItem = new Func<Task>(() => new Worker(logger).Run());
+        var cancellationTokenSource = new CancellationTokenSource(2000);
+        var workItem = new Func<Task>(async () => {
+            try 
+            {
+                await new Worker(logger).Run(cancellationTokenSource.Token);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error");
+                throw;
+            }
+            finally 
+            {
+                logger.Completed();
+            }
+        });
 
         _taskLogs[guid] = logger;
         _taskChannel.Writer.TryWrite(workItem);
-
         return guid;
     }
 
@@ -49,21 +70,20 @@ internal record TaskOutput(IReadOnlyCollection<string> Logs, bool IsCompleted);
 
 internal class Worker
 {
-    private readonly InMemoryLogger<Worker> logger;
+    private readonly ILogger logger;
 
-    public Worker(InMemoryLogger<Worker> logger)
+    public Worker(ILogger logger)
     {
         this.logger = logger;
     }
 
-    public async Task Run()
+    public async Task Run(CancellationToken token)
     {
         for (var i = 0; i < 3; i++)
         {
-            await Task.Delay(1000);
+            await Task.Delay(1000, token).ConfigureAwait(false);
             logger.LogInformation("Doing work");
         }
-        logger.Completed();
     }
 }
 
