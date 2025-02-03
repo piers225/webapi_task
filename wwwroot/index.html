@@ -76,10 +76,30 @@
                 if (response.ok) {
                     const result = await response.json();
                     taskId = result; 
-                    appendToConsole(`Task started. Task ID: ${taskId}`);
+                    appendToConsole(`Task ID Created : ${taskId}`);
+                    runTask(taskId);
                     startPollingTaskStatus(taskId);
                 } else {
                     appendToConsole("Error starting task.");
+                }
+            } catch (error) {
+                appendToConsole("Error: " + error.message);
+            } finally {
+                startTaskBtn.disabled = false;
+            }
+        }
+
+        async function runTask(taskId) {
+            try {
+                appendToConsole(`Task Starting. Task ID: ${taskId}`);
+                const response = await fetch(`/api/task/${taskId}`, {
+                    method: "POST",
+                });
+
+                if (response.ok) {
+                    appendToConsole(`Task Completed. Task ID: ${taskId}`);
+                } else {
+                    appendToConsole("Error running task.");
                 }
             } catch (error) {
                 appendToConsole("Error: " + error.message);
@@ -99,7 +119,7 @@
 
                         content.logs.forEach(line => appendToConsole(line));
                         if (content.isCompleted) {
-                            appendToConsole(`Task completed. Task ID: ${taskId}`);
+                            appendToConsole(`Task polling completed. Task ID: ${taskId}`);
                             clearInterval(pollInterval);
                             return;
                         }

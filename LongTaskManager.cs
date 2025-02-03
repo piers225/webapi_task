@@ -1,60 +1,27 @@
 using System.Collections.Concurrent;
-using System.Threading.Channels;
 
 namespace MyApi;
 
 internal class LongTaskManager
 {
-    private readonly Channel<Func<Task>> _taskChannel;
     private readonly ConcurrentDictionary<Guid, InMemoryLogger<Worker>> _taskLogs = new();
 
-    public LongTaskManager()
+    public async Task RunTask(Guid guid, CancellationToken token)
     {
-        _taskChannel = Channel.CreateBounded<Func<Task>>(10);
-        
-        _ = Task.Run(async () =>
-        {
-            await foreach (var workItem in _taskChannel.Reader.ReadAllAsync())
-            {
-                try
-                {
-                    await workItem();
-                }
-                catch(Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-            }
-        });
+        var logger = _taskLogs[guid];
+        await new Worker(logger).Run(token);
+        logger.Completed();
     }
 
-    public Guid CreateTask()
+    public Guid CreateTask() 
     {
         var guid = Guid.NewGuid();
         var logger = new InMemoryLogger<Worker>();
-        var cancellationTokenSource = new CancellationTokenSource(2000);
-        var workItem = new Func<Task>(async () => {
-            try 
-            {
-                await new Worker(logger).Run(cancellationTokenSource.Token);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error");
-                throw;
-            }
-            finally 
-            {
-                logger.Completed();
-            }
-        });
-
         _taskLogs[guid] = logger;
-        _taskChannel.Writer.TryWrite(workItem);
         return guid;
     }
 
-    public async Task<TaskOutput> TaskOutput(Guid guid)
+    public TaskOutput TaskOutput(Guid guid)
     {
         var logger = _taskLogs[guid];
         var output = logger.FlushLogs();
